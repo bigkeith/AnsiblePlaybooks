@@ -1,0 +1,22 @@
+---
+- name: Deploy Docker Compose application
+  hosts: your_target_host
+  become: true
+  tasks:
+
+    - name: Copy Docker Compose file to the target machine
+      copy:
+        src: ./docker-compose.yml
+        dest: /path/to/your/docker-compose.yml
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Pull and start the Docker Compose services
+      shell: |
+        docker-compose -f /path/to/your/docker-compose.yml up -d
+      args:
+        chdir: /path/to/your
