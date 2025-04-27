@@ -43,3 +43,5 @@
         name: "{{ ansible_user_id }}"
         groups: docker
         append: yes
+#this should do the trick
+    
