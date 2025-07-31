@@ -7,24 +7,26 @@
     proxmox_api_user: "ansible@pam"
     proxmox_api_token_id: "ansible@pam!ansible-token"
     # IMPORTANT: Use Ansible Vault for the token secret!
-    #proxmox_api_token_secret: "{{ vault_proxmox_token_secret }}"
-    proxmox_api_token_secret: "vars/vault.yml"
+    # The variable should point to the decrypted variable name, not the file path.
+    proxmox_api_token_secret: "{{ vault_proxmox_token_secret }}"
 
     proxmox_node: "pve-node-01"
     vm_template_name: "ubuntu-2204-template"
     new_vm_id: 101
     new_vm_name: "ubuntu-webserver-01"
 
-    # Cloud-init configuration
-    ci_user: "ansible@pam"
+    # Cloud-init configuration variables
+    # The 'ci_user' should be a simple username for the guest OS, not a Proxmox user.
+    ci_user: "ansibleuser"
     ci_ssh_keys: |
       ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCdrBGMcDtqHW9U7ih1qv9xnXDthLFiM86sZlHhGMt8OyiSO7oQ9+GtFjU/wLRMB0ewnpl0weYutnTrUbCQABnn8bNc8K6OYkBXAuNi49a1GkFQvwOOMZYLfVs1lKi34Ce/MqU2kGxf72NhvChs1VnkKSR/w6zPeOJIEe3wKVQ6aJhzey94fjt7VgBwfDat3aeVMAbn9CH7I4bB8CJ7gmWTdTyvnI0ZQ27IKBgdvDis9L8oOiIJp1RDDDq/lS+ttJoBc6jwK/6yg6PxNDfrIBjn9oi286rGoLmBWBKkL3IJ1wSpyRoSM3UsyF3WUn0JY/PUnyotGi7ZNr9xn56KgiRJ6gLV5AzJjHaK6CqxermWGNrsKcfhyk3xpW9EFPqnuvxzlXRzlQlupZOVbD4Ivwxh1VgQbiFfhWq2rP7ZPC+dL8dguoWU8wSutTqkbDlsB5t3USPNFdAUScLAwRfFTR6bq1zD0EYJ7hbdmddPNKkerDjW81lttvjq7C+TYG6Nj20= ansible@pve
-    ci_ip: "192.168.1.150/24"
+    ci_ip: "192.168.1.150" # Removed /24 as it is not needed here
+    ci_netmask: "24"
     ci_gw: "192.168.1.1"
     ci_dns: "192.168.1.101"
 
   tasks:
-    - name: Create and configure the new VM from template
+    - name: Create and configure a new VM from template
       community.proxmox.proxmox_kvm:
         api_host: "{{ proxmox_api_host }}"
         api_user: "{{ proxmox_api_user }}"
@@ -42,25 +44,24 @@
         memory: 2048 # In MB
         cpu: host
         
-        # Disk configuration (resize the root disk)
-        disks:
-          - size: 50 # In GB
-            storage: VGLOCAL3
-            format: qcow2
-            scsi_controller: virtio-scsi-pci
-        
-        # Network configuration
-        nics:
-          - bridge: vmbr0
-            model: virtio
-            tag: 100 # Optional, for VLANs
-            
-        # Cloud-init configuration
-        ci_user: "{{ ci_user }}"
-        ci_sshkeys: "{{ ci_ssh_keys }}"
-        ci_hostname: "{{ new_vm_name }}"
-        ci_ipconfig:
-          net0: "ip={{ ci_ip }},gw={{ ci_gw }},dns={{ ci_dns }}"
+        # CORRECTED DISK CONFIGURATION
+        scsi0:
+          size: 50  # In GB
+          storage: VGLOCAL3
+          scsihw: virtio-scsi-pci
+          
+        # CORRECTED NETWORK CONFIGURATION
+        net0:
+          bridge: vmbr0
+          model: virtio
+          tag: 100 # Optional, for VLANs
+          
+        # CORRECTED CLOUD-INIT CONFIGURATION
+        ciuser: "{{ ci_user }}"
+        sshkeys: "{{ ci_ssh_keys }}"
+        # The 'ci_hostname' is no longer a parameter. It is automatically set from the 'name' parameter.
+        ipconfig:
+          net0: "ip={{ ci_ip }}/{{ ci_netmask }},gw={{ ci_gw }},dns={{ ci_dns }}"
 
     - name: Wait for the new VM to be reachable via SSH
       ansible.builtin.wait_for:
@@ -76,6 +77,7 @@
         hostname: "{{ ci_ip }}"
         groups: 
           - new_vms
+        # The ansible_user should match the 'ci_user' set in the cloud-init config.
         ansible_user: "{{ ci_user }}"
         ansible_ssh_private_key_file: "~/.ssh/id_rsa"
       changed_when: false
