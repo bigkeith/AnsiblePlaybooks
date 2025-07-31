@@ -1,0 +1,80 @@
+---
+- name: Deploy a new Ubuntu VM to Proxmox
+  hosts: proxmox_host
+  gather_facts: no
+  vars:
+    proxmox_api_host: "your_proxmox_server_ip"
+    proxmox_api_user: "ansible@pve"
+    proxmox_api_token_id: "ansible-token-id"
+    # IMPORTANT: Use Ansible Vault for the token secret!
+    proxmox_api_token_secret: "{{ vault_proxmox_token_secret }}"
+
+    proxmox_node: "pve-node-01"
+    vm_template_name: "ubuntu-2204-template"
+    new_vm_id: 101
+    new_vm_name: "ubuntu-webserver-01"
+
+    # Cloud-init configuration
+    ci_user: "ansibleuser"
+    ci_ssh_keys: |
+      ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your_public_ssh_key
+    ci_ip: "192.168.1.101/24"
+    ci_gw: "192.168.1.1"
+    ci_dns: "192.168.1.1"
+
+  tasks:
+    - name: Create and configure the new VM from template
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_token_id: "{{ proxmox_api_token_id }}"
+        api_token_secret: "{{ proxmox_api_token_secret }}"
+        node: "{{ proxmox_node }}"
+        vmid: "{{ new_vm_id }}"
+        name: "{{ new_vm_name }}"
+        clone: "{{ vm_template_name }}"
+        state: present
+        
+        # Hardware configuration
+        cores: 2
+        sockets: 1
+        memory: 2048 # In MB
+        cpu: host
+        
+        # Disk configuration (resize the root disk)
+        disks:
+          - size: 32 # In GB
+            storage: local-lvm
+            format: qcow2
+            scsi_controller: virtio-scsi-pci
+        
+        # Network configuration
+        nics:
+          - bridge: vmbr0
+            model: virtio
+            tag: 100 # Optional, for VLANs
+            
+        # Cloud-init configuration
+        ci_user: "{{ ci_user }}"
+        ci_sshkeys: "{{ ci_ssh_keys }}"
+        ci_hostname: "{{ new_vm_name }}"
+        ci_ipconfig:
+          net0: "ip={{ ci_ip }},gw={{ ci_gw }},dns={{ ci_dns }}"
+
+    - name: Wait for the new VM to be reachable via SSH
+      ansible.builtin.wait_for:
+        host: "{{ ci_ip }}"
+        port: 22
+        timeout: 300 # seconds
+        state: started
+      delegate_to: localhost
+      
+    - name: Add new VM to a dynamic in-memory inventory group
+      ansible.builtin.add_host:
+        name: "{{ new_vm_name }}"
+        hostname: "{{ ci_ip }}"
+        groups: 
+          - new_vms
+        ansible_user: "{{ ci_user }}"
+        ansible_ssh_private_key_file: "~/.ssh/id_rsa"
+      changed_when: false
