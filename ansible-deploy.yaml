@@ -3,9 +3,9 @@
   hosts: proxmox_host
   gather_facts: no
   vars:
-    proxmox_api_host: "your_proxmox_server_ip"
-    proxmox_api_user: "ansible@pve"
-    proxmox_api_token_id: "ansible-token-id"
+    proxmox_api_host: "192.168.1.100"
+    proxmox_api_user: "ansible@pam"
+    proxmox_api_token_id: "ansible@pam!ansible-token"
     # IMPORTANT: Use Ansible Vault for the token secret!
     proxmox_api_token_secret: "{{ vault_proxmox_token_secret }}"
 
@@ -18,9 +18,9 @@
     ci_user: "ansibleuser"
     ci_ssh_keys: |
       ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your_public_ssh_key
-    ci_ip: "192.168.1.101/24"
+    ci_ip: "192.168.1.150/24"
     ci_gw: "192.168.1.1"
-    ci_dns: "192.168.1.1"
+    ci_dns: "192.168.1.101"
 
   tasks:
     - name: Create and configure the new VM from template
@@ -43,8 +43,8 @@
         
         # Disk configuration (resize the root disk)
         disks:
-          - size: 32 # In GB
-            storage: local-lvm
+          - size: 50 # In GB
+            storage: storagedisk
             format: qcow2
             scsi_controller: virtio-scsi-pci
         
