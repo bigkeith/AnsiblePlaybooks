@@ -44,7 +44,7 @@
         # Disk configuration (resize the root disk)
         disks:
           - size: 50 # In GB
-            storage: storagedisk
+            storage: VGLOCAL3
             format: qcow2
             scsi_controller: virtio-scsi-pci
         
