@@ -1,6 +1,6 @@
 ---
 - name: Deploy a new Ubuntu VM to Proxmox
-  hosts: proxmox_host
+  hosts: proxmox_host #host
   gather_facts: no
   vars:
     proxmox_api_host: "192.168.1.100"
