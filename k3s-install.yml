@@ -41,3 +41,21 @@
         sh -
       args:
         creates: /usr/local/bin/k3s
+
+- name: Configure Local Kubectl
+  hosts: master
+  become: yes
+  tasks:
+    - name: Copy kubeconfig to local machine
+      fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: ./k3s-proxmox.yaml
+        flat: yes
+
+    - name: Update IP in local kubeconfig
+      delegate_to: localhost
+      become: no
+      replace:
+        path: ./k3s-proxmox.yaml
+        regexp: '127.0.0.1'
+        replace: "{{ inventory_hostname }}"
