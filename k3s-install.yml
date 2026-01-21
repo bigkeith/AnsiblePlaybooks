@@ -1,0 +1,43 @@
+---
+- name: Prepare Nodes
+  hosts: k3s_cluster
+  become: yes
+  tasks:
+    - name: Update cache and install curl
+      apt:
+        name: curl
+        state: present
+        update_cache: yes
+
+- name: Setup K3s Master
+  hosts: master
+  become: yes
+  tasks:
+    - name: Install K3s Server
+      shell: curl -sfL https://get.k3s.io | sh -
+      args:
+        creates: /usr/local/bin/k3s
+
+    - name: Read Node Token
+      slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: node_token
+
+    - name: Set token fact
+      set_fact:
+        token: "{{ node_token.content | b64decode | trim }}"
+
+- name: Setup K3s Workers
+  hosts: workers
+  become: yes
+  vars:
+    master_ip: "192.168.1.150"
+  tasks:
+    - name: Join K3s Cluster
+      shell: >
+        curl -sfL https://get.k3s.io | 
+        K3S_URL=https://{{ master_ip }}:6443 
+        K3S_TOKEN={{ hostvars[groups['master'][0]]['token'] }} 
+        sh -
+      args:
+        creates: /usr/local/bin/k3s
