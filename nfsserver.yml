@@ -1,0 +1,26 @@
+- name: Setup NFS Server
+  hosts: nfs_server
+  become: true
+  tasks:
+    - name: Install NFS kernel server
+      apt:
+        name: nfs-kernel-server
+        state: present
+
+    - name: Create export directory
+      file:
+        path: /mnt/k8s_storage
+        state: directory
+        mode: '0777'
+
+    - name: Configure /etc/exports
+      lineinfile:
+        path: /etc/exports
+        line: "/mnt/k8s_storage *(rw,sync,no_subtree_check,no_root_squash)"
+      notify: restart nfs
+
+  handlers:
+    - name: restart nfs
+      service:
+        name: nfs-kernel-server
+        state: restarted
