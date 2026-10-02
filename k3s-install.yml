@@ -1,6 +1,6 @@
 ---
 - name: Prepare Nodes
-  hosts: k3s_cluster
+  hosts: k3s
   become: yes
   tasks:
     - name: Update cache and install curl
@@ -62,7 +62,7 @@
 
 - name: Install MetalLB
   hosts: master
-  become: no
+  become: yes
   vars:
     # CHANGE THESE to a free range in your network
     ip_range: "192.168.1.200-192.168.1.250"
